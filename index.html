@@ -43,225 +43,258 @@
 			<!-- Any section element inside of this container is displayed as a slide -->
 			<div class="slides">
 				<section>
-					<h1>Intro to OCaml</h1>
+					<h1>Repommender!</h1>
 					<p>
-                    <small>I'm Jamis</small>
+                    <small>A GitHub repository recommender. Name still under construction. I am Jamis.</small>
                     </p>
                     <p>
-                    <small><a target="_blank" href="mailto:jamismanwaring@gmail.com">jamismanwaring@gmail.com</a> | <a target="_blank" href="http://github.com/jamiis">github.com/jamiis</a> | <a href="http://twitter.com/jamisjohnson">@jamisjohnson</a></small>
+                    <small><a target="_blank" href="mailto:jmj2180@columbia.edu">jmj2180@columbia.edu</a> | <a target="_blank" href="http://github.com/jamiis">github.com/jamiis</a> | <a href="http://twitter.com/jamisjohnson">@jamisjohnson</a></small>
 					</p>
 				</section>
 
                 <section>
-                    <h2>OS X Install</h2>
-                    <pre><code data-trim contenteditable>
-$ brew update           # mmmm
-$ brew install ocaml    # should include compiler and other fancy tools
-$ brew install opam     # ocaml package manager
-$ opam install utop     # fancy repl (aka toplevel). works in emacs if that's the way you swing
-                    </code></pre>
-                    <small>If you are running Windows then uh idk. You have bigger problems than downloading ocaml.</small>
+                    <h2>Why?</h2>
+                    <ol>
+                        <li>It's Something I Would Use That Doesn't Yet Exist</li>
+                        <li>Machine Learning Focued</li>
+                    </ol>
                 </section>
 
                 <section>
-                    <a href="http://ocaml.org">
-                      <img src="http://ocaml.org/logo/Colour/JPEG/colour-logo.jpg"
-                           alt="OCaml"
-                           style="border: none; width: 750px;" />
-                    </a>
+                    <h2>Pilfering the Stars</h2>
+                    <small><a href="http://www.githubarchive.org/">GitHub Archive</a> does not contain user-to-repo star data!</small>
+                    <pre><code data-trim contenteditable>
+#!/usr/bin/env python
+
+from datetime import datetime as dt
+from getpass import getpass
+from time import sleep
+
+import github3
+from github3.exceptions import ForbiddenError, GitHubError, ServerError
+
+# authenticate with github
+uname = raw_input("Github username[jamiis]:") or "jamiis"
+pwd = getpass()
+gh = github3.login(uname, pwd)
+
+def sleep_on_rate_limit(err):
+    '''sleep until github api requests reset'''
+    # note: dumb way to check error type but there is no rate limit specific err
+    if err.message == "API rate limit exceeded for %s." % uname:
+        # check rate limit every 5 minute
+        retry_in = 60*5
+        while True:
+            if gh.rate_limit()['rate']['remaining']:
+                return
+            print 'continue in', retry_in/60.0, 'minutes'
+            sleep(retry_in)
+
+def prevail(gen):
+    '''
+    forces generator to continue even on error. very naive! don't use 
+    unless you really want to brute force the generator to continue.
+    '''
+    while True:
+        try:
+            yield next(gen)
+        except StopIteration:
+            raise
+        # catches all github3.exceptions
+        except GitHubError as e:
+            print e.__class__.__name__, e
+            sleep_on_rate_limit(e)
+            pass
+
+with open('data/stargazers', 'a') as f:
+
+    since = raw_input("Continue from repo ID[None]:") or None
+    for user in prevail(gh.all_users(since=since)):
+
+        print '%s\t%s' % (user.id, user.login)
+
+        for repo in prevail(user.starred_repositories()):
+
+            f.write("%s::%s::%s::%s\n" % (
+                user.login,
+                user.id,
+                repo.full_name,
+                repo.id))
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Pilfering the Stars</h2>
+                    <pre><code data-trim contenteditable>
+                    $ tail -f data/stargazers
+
+                    rlenglet::126329::openstack/neutron::2400289
+                    rlenglet::126329::rlenglet/openfaucet::1270260
+                    rlenglet::126329::ubf/ubf-abnf::309879
+                    rlenglet::126329::rlenglet/logtilla::305584
+                    rlenglet::126329::ubf/ubf::173366
+                    iotae::126330::iotae/Rails-Test::305579
+                    iotae::126330::jrallison/authlogic_oauth::214049
+                    iotae::126330::kalasjocke/authlogic-facebook-connect::190556
+                    iotae::126330::binarylogic/authlogic_openid::156775
+                    iotae::126330::insoshi/insoshi::6313
+                    </code></pre>
+                    <small>Approximately 4% of github's entire users population</small>
+                </section>
+
+                <section>
+                    <h2>Architecture (In Theory and In Practice)</h2>
                     <ul>
-                        <li><strong>O</strong>bjective <strong>C</strong>ategorical <strong>A</strong>bstract <strong>M</strong>achine <strong>L</strong>anguage ... kind of.</li>
-                        <li>Created at the French research institution INRIA in 1996 by Xavier Leroy, Jérôme Vouillon, Damien Doligez, Didier Rémy.</li>
-                        <li><q cite="http://www.wikiwand.com/en/OCaml">OCaml unifies functional, imperative, and object-oriented programming under an ML-like type system. -Wikipedia</li></q>
+                        <li>Spark cluster on EMR (four m3.large worker nodes and one m3.large master)</li>
+                        <li>Load balanced EC-2 NodeJS/Express instances</li>
+                        <li>DynamoDB for storing computed recommendations</li>
+                        <li>EC-2 servers, NodeJS/Express</li>
+                        <li>Pool of EC-2 workers scraping GitHub by rotating keys</li>
                     </ul>
                 </section>
 
                 <section>
-                    <h2>Highlights</h2>
+                    <h2>Spark > Hadoop MapReduce</h2>
                     <ul>
-                        <li>Static type system makes runtime type mismatches impossible</li>
-                        <li>Type inference gives a feel of a dynamically typed language</li>
-                        <li>Foreign function interface for linking with C and FORTRAN</li>
-                        <li>Parametric polymorphism aides in writting highly expressive, terse functions</li>
-                        <li>Exhaustive pattern matching warns you when cases haven't been covered</li>
-                        <li>Native compilers for IA-32, AMD64, Power, SPARC, ARM, and ARM64</li>
+                        <li>Spark does not write to disk (HDFS) between sequential map reduce jobs</li>
+                        <li>Instead, RDDs are kept in memory between computations</li>
+                        <li>Spark claims to be consistently 10-100x faster than Hadoop MR</li>
+                        <li>Top level Apache project (2,402 stars on GitHub)</li>
+                        <li>Written in Scala but you can interface with Java or Python</li>
+                        <li>Built In Libraries: MLlib, Spark SQL (formerly Shark), GraphX, Spark Streaming
                     </ul>
                 </section>
 
                 <section>
-                    <h2>"Ocaml in 1 Slide"</h2>
-                    <small>Thank you professor <a href="http://www.cs.columbia.edu/~sedwards/">Edwards</a></small>
-
-                    <pre><code data-trim contenteditable>
-let rec map f = function    (* pass functions *)
-    | [] -> []              (* pattern matching *)
-    | head :: tail ->       (* case splitting *)
-        let r = f head in   (* polymorphic *)
-        r :: map f tail     (* prepend using cons operator *)
-                    </code></pre>
-
-                    <pre><code data-trim contenteditable>
-# List.map;;
-val map : (’a -> ’b) -> ’a list -> ’b list
-# (* note how types are inferred *)
-
-# List.map (fun x -> x + 3) [1;5;9];;
-- : int list = [4; 8; 12]
-
-# let add5 = List.map (fun x -> x + 3);;
-val add5 : int list -> int list = &lt;fun&gt;
-
-# add5 [1;2;3;4;5];;
-- : int list = [6; 7; 8; 9; 10]
-                    </code></pre>
-                </section>
-
-
-                <section>
-                    <h2>Types</h2>
-                    <pre><code data-trim contenteditable>
-type op = Add | Sub | Mult | Div
-type expr = Lit of int | Binop of expr * op * expr
-                    </pre></code>
-                    <pre><code data-trim contenteditable>
-# let one = Lit(1);;
-val one : expr = Lit 1
-
-# let two = Lit(2);;
-val two : expr = Lit 2
-
-# let three = Binop(one, Add, two);;
-val three : expr = Binop (Lit 1, Add, Lit 2)
-                    </pre></code>
+                    <h2>Implicit Collaborative Filtering</h2>
+                    <img src="lib/img/collaborative-filtering.jpg"
+                         alt="collab" style="border: none; width: 750px;" />
                 </section>
 
                 <section>
-                    <h2>Memoize</h2>
-                    <small><a href="https://github.com/realworldocaml/examples/blob/master/code/imperative-programming/memo.topscript" target="_blank">code from real world ocaml</a></small>
-                    <pre><code data-trim contenteditable>
-let memoize f =
-    let table = Hashtbl.Poly.create () in
-    (fun x ->
-      match Hashtbl.find table x with
-      | Some y -> y
-      | None ->
-        let y = f x in
-        Hashtbl.add_exn table ~key:x ~data:y;
-        y)
-
-let rec fib i = if i <= 1 then 1 else fib (i - 1) + fib (i - 2)
-                    </pre></code>
-
-                </section>
-                <section>
-                    <h2>Memoize</h2>
-                    <small><a href="https://github.com/realworldocaml/examples/blob/master/code/imperative-programming/memo.topscript" target="_blank">code from real world ocaml</a></small>
-                    <pre><code data-trim contenteditable>
-# memoize;;
-val memoize : ('a -> 'b) -> 'a -> 'b = &lt;fun&gt;
-
-# fib;;
-val fib : int -> int = &lt;fun&gt;
-
-# let fib = memoize fib;;
-val fib : int -> int = &lt;fun&gt;
-
-# time (fun () -> fib 40);;
-Time: 4.90749s
-- : int = 165580141
-
-# time (fun () -> fib 40);;
-Time: 0.00286102ms
-- : int = 165580141
-                    </pre></code>
-                </section>
-
-
-
-                <section>
-                    <h2>Complex Pattern Matching</h2>
-                    <pre><code data-trim contenteditable>
-let rec uniq = function
-    | ([] | [_]) as l -> l
-    | x :: ((x2::_) as xs) ->
-        if x = x2 then uniq xs else x :: uniq xs
-                    </pre></code>
-                    <pre><code data-trim contenteditable>
-# uniq;;
-- : 'a list -&gt; 'a list = &lt;fun&gt;
-(* mmmmmm parametric polymorphism *)
-
-# uniq [1;2;3;3;3;4;4;3;3;3;3;5;5];;
-- : int list = [1; 2; 3; 4; 3; 5]
-
-# uniq ["hello";"hello";"world";"!";"!"];;
-- : string list = ["hello"; "world"; "!"]
-                    </pre></code>
-                </section>
-
-
-                <section>
-                    <h2>Ecosystem</h2>
+                    <h2>Lessons Learned</h2>
+                    <h3>Start Earlier!</h3>
                     <ul>
-                        <li>ocamldep - Dependency generator</li>
-                        <li>ocamlopt - Native code compiler</li>
-                        <li>ocamlc - Byte code compiler</li>
-                        <li>ocamldebug - OCaml source-level replay debugger</li>
-                        <li>opam - Package manager</li>
-                        <li><a href="https://github.com/diml/utop" target="_blank">utop</a> - Imporved toplevel interpreter (ocaml is the standard interpeter)</li>
-                        <li><a href="https://github.com/janestreet/core" target="_blank">Core</a> - Jane Street Capital's standard library overlay</li>
-                        <li><a href="https://github.com/the-lambda-church/merlin" target="_blank">merlin</a> - Context sensitive code completion for vim and emacs</li>
-                        <li>ocamllex - Lexer generator</li>
-                        <li>ocamlyacc - Parser generator</li>
+                        <li>Ramp up Spark</li>
+                        <li>Running and refactoring the GitHub scrape job for a week</li>
+                        <li>Learning MLlib and the ALS recommender</li>
+                        <li>Efficacy. Big Data is not trivial: the cartesian product is huge!</li>
+                        <li>Deploying and configuring Spark clusters</li>
+                        <li>Tieing together multiple APIs</li>
+                        <li>Fighting bugs</li>
+                        <li>Frontend design</li>
+                        <li>... etc., etc., etc.</li>
                     </ul>
                 </section>
 
                 <section>
-                    <h2>Facebook</h2>
-                    <p><a href="http://flowtype.org/" target="_blank">Flow</a> - a static type checker for JavaScript</p>
-                    <img width="350" src="zuck.jpg">
+                    <h2>Lessons Learned</h2>
+                    <h3>In other words: <strong>Get a Team!</strong></h3>
                 </section>
 
                 <section>
-                    <h2>Facebook</h2>
-                    <p><a href="http://flowtype.org/" target="_blank">Flow</a> - a static type checker for JavaScript</p>
-                    <pre><code data-trim contenteditable>
-/* @flow */
-function foo(x) {
-    return x * 10;
-}
-foo('Hello, world!');
-                    </code></pre>
-                    <pre><code data-trim contenteditable>
-$> flow
-hello.js:5:5,19: string
-This type is incompatible with
-  hello.js:3:10,15: number
-                    </code></pre>
-                    <p>
-                    Install
-                    <pre><code data-trim contenteditable>
-opam install flowtype
-                    </code></pre>
-                    </p>
+                    <h2>Lessons Learned</h2>
+                    <h3>Use Spark SQL</h3>
+                    <p>If I got hit by a bus it would be very hard to reverse engineer non-Spark-SQL code</p>
+                <pre><code data-trim contenteditable>
+#!/usr/bin/env python
+
+# https://spark.apache.org/docs/1.2.0/mllib-collaborative-filtering.html
+
+from pyspark.mllib.recommendation import ALS
+from numpy import array
+from pyspark import SparkContext
+from pprint import pprint
+import os, sys
+
+def extract_user_repo(line, fieldtype=float):
+    line = line.split('::')
+    if fieldtype is float:
+        # user.id, repo.id
+        fields = [line[1], line[3]]
+    elif fieldtype in [unicode,str]:
+        # user.login, repo.full_name
+        fields = [line[0], line[2]]
+    return array([fieldtype(f) for f in fields])
+
+if __name__ == "__main__":
+    sc = SparkContext(appName='TweetSentiment')
+
+    env = os.getenv('ENV', 'dev')
+    if  env == 'dev':
+        lines = sys.argv[1] if len(sys.argv) >= 2 else '100'
+        text = 'data/stargazers.%sk' % lines
+    elif env == 'prod':
+        text = 's3n://jamis.bucket/stargazers'
+
+    # load and parse the text file
+    data = sc.textFile(text)
+
+    starpairs = data.map(extract_user_repo)
+    starpairs.cache()
+
+    users = starpairs.map(lambda t: t[0]).distinct()
+
+    # get 5% most popular repos
+    repos = starpairs.map(lambda t: t[1]).distinct()
+    sample = int(0.01 * repos.count())
+    top_repos = starpairs\
+        .groupBy(lambda t: t[1])\
+        .sortBy(lambda t: len(t[1]), False)\
+        .map(lambda t: t[0])\
+        .take(sample)
+    top_repos_rdd = sc.parallelize(top_repos)
+    top_repos_rdd.cache()
+    top_repos_bc = sc.broadcast(top_repos)
+    pprint(top_repos[:5])
+
+    starpairs_filtered = starpairs.filter(lambda t: t[1] in top_repos_bc.value)
+    starpairs_filtered.cache()
+
+    # train recommendation model using alternating least squares
+    stars_with_rating = starpairs_filtered.map(lambda t: array([t[0], t[1], 1]))
+    model = ALS.trainImplicit(stars_with_rating, rank=1)
+
+    # get all user->repo pairs without stars
+    users_repos = users.cartesian(top_repos_rdd).groupByKey()
+    stars_grouped = starpairs_filtered.groupByKey()
+    unstarred = users_repos.join(stars_grouped)\
+        .map(lambda i: (i[0], set(i[1][0]) - set(i[1][1]) ))\
+        .flatMap(lambda i: [ (i[0], repo) for repo in i[1] ] )
+
+    # predict unstarred user-repo pairs.
+    predictions = model.predictAll(unstarred)
+
+    # for each user, associate the 5 repos with the highest predicted rating.
+    top = predictions\
+        .map(lambda t: (t[0], (t[1],t[2])))\
+        .groupByKey()\
+        .map(lambda t: (t[0], [i[0] for i in sorted(t[1], key=lambda i: -i[1])[:5]]))\
+        .coalesce(1)
+
+    if  env == 'dev':
+        top.saveAsTextFile('data/recommendations.%sk' % lines)
+    elif env == 'prod':
+        top.saveAsTextFile('s3n://jamis.bucket/recommendations')
+                </code></pre>
+                </section>
                 </section>
 
                 <section>
-                    <h2>Jane Street</h2>
-                    <ul>
-                        <li>A quantitative trading firm and the largest industrial user of OCaml.</li>
-                        <li>They maintain <a href="https://github.com/janestreet/core" target="_blank">Core</a>, a standard library overlay.</li>
-                        <li><a href="https://blogs.janestreet.com/category/ocaml/" target="_blank">(* Musings from Jane Street's OCaml Developers *)</a></li>
-                    </ul>
+                  <h2>This Semester</h2>
+                  <ul>
+                        <li>EC2, DynamoDB, S3, SQS, ELB, ElasticBeanstalk</li>
+                        <li>Spark (Scala, MLlib, pyspark)</li>
+                        <li>Socket IO</li>
+                        <li>Twitter, GoogleMaps, and GitHub APIs</li>
+                        <li>CoffeeScript</li>
+                        <li>Jade Templates</li>
+                        <li>CSS framework Skel</li>
+                  </ul>
                 </section>
 
                 <section>
-                    <h2>All you need is love and </h2>
-                    <h2><a href="https://realworldocaml.org/" target="_blank">Real World OCaml</a></h2>
-                </section>
-
-                <section>
-                    <h1>Thanks MLH!</h1>
+                    <h1>Thank you!</h1>
                 </section>
 
 			</div>
