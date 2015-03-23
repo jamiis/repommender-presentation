@@ -143,7 +143,8 @@ with open('data/stargazers', 'a') as f:
                 </section>
 
                 <section>
-                    <h2>Architecture (In Theory and In Practice)</h2>
+                  <h2>Architecture</h2>
+                    <h3>In Theory and In Practice</h3>
                     <ul>
                         <li>Spark cluster on EMR (four m3.large worker nodes and one m3.large master)</li>
                         <li>Load balanced EC-2 NodeJS/Express instances</li>
@@ -183,6 +184,7 @@ with open('data/stargazers', 'a') as f:
                         <li>Tieing together multiple APIs</li>
                         <li>Fighting bugs</li>
                         <li>Frontend design</li>
+                        <li>Mobile friendly</li>
                         <li>... etc., etc., etc.</li>
                     </ul>
                 </section>
@@ -190,6 +192,11 @@ with open('data/stargazers', 'a') as f:
                 <section>
                     <h2>Lessons Learned</h2>
                     <h3>In other words: <strong>Get a Team!</strong></h3>
+                </section>
+
+                <section>
+                    <h2>Lessons Learned</h2>
+                    <h3>Get more data! Most recommendations are old repos</h3>
                 </section>
 
                 <section>
@@ -235,7 +242,7 @@ if __name__ == "__main__":
 
     users = starpairs.map(lambda t: t[0]).distinct()
 
-    # get 5% most popular repos
+    # get 1% most popular repos
     repos = starpairs.map(lambda t: t[1]).distinct()
     sample = int(0.01 * repos.count())
     top_repos = starpairs\
@@ -318,7 +325,7 @@ if __name__ == "__main__":
 				transition: Reveal.getQueryHash().transition || 'linear', // default/cube/page/concave/zoom/linear/fade/none
 
 				// Parallax scrolling
-                parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+                //parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
                 parallaxBackgroundSize: '2100px 900px',
 
 				// Optional libraries used to extend on reveal.js
